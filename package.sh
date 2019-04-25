@@ -1,28 +1,21 @@
-#!/bin/bash -e
+#!/bin/bash
 
-rm -rf node_modules
-if [ -z "${ADDON_ARCH}" ]; then
-  TARFILE_SUFFIX=
-else
-  NODE_VERSION="$(node --version)"
-  TARFILE_SUFFIX="-${ADDON_ARCH}-${NODE_VERSION/\.*/}"
-fi
-if [ "${ADDON_ARCH}" == "linux-arm" ]; then
-  # We assume that CC and CXX are pointing to the cross compilers
-  npm install --ignore-scripts --production
-  npm rebuild --arch=armv6l --target_arch=arm
-else
-  npm install --production
-fi
+set -e
 
+version=$(grep version package.json | cut -d: -f2 | cut -d\" -f2)
+
+# Clean up from previous releases
+rm -rf *.tgz package
 rm -f SHA256SUMS
-sha256sum package.json *.js LICENSE > SHA256SUMS
-find node_modules -type f -exec sha256sum {} \; >> SHA256SUMS
-TARFILE="$(npm pack)"
-tar xzf ${TARFILE}
-rm ${TARFILE}
-TARFILE_ARCH="${TARFILE/.tgz/${TARFILE_SUFFIX}.tgz}"
-cp -r node_modules ./package
-tar czf ${TARFILE_ARCH} package
-rm -rf package
-echo "Created ${TARFILE_ARCH}"
+
+# Put package together
+mkdir package
+cp -r lib LICENSE package.json *.js package/
+
+# Generate checksums
+cd package
+sha256sum *.js lib/*.js LICENSE > SHA256SUMS
+cd -
+
+# Make the tarball
+tar czf "lg-tv-adapter-${version}.tgz" package
